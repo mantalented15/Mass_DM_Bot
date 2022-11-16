@@ -9,12 +9,13 @@ class MassMessenger:
     Sends a mass message to a list of Reddit users.
     """
 
-    def __init__(self, c_id, c_secret, user, pwd, user_agent, message_loc, urls_loc):
+    def __init__(self, c_id, c_secret, user, pwd, user_agent, urls_loc, message_loc, subject_loc):
         self.r = praw.Reddit(client_id=c_id,
                      client_secret=c_secret, password=pwd,
                      user_agent=user_agent, username=user)
-        self.message = self.get_contents(message_loc)
-        self.urls = self.get_urls(urls_loc)
+        self.message = self.get_contents_by_whole(message_loc)
+        self.subject = self.get_contents_by_whole(subject_loc)
+        self.urls = self.get_contents_by_line(urls_loc)
         self.list = self.get_users(self.urls)
 
     def get_users(self, urls:list) -> list:
@@ -24,17 +25,23 @@ class MassMessenger:
         :param urls: list
         :return: list
         """
+        
  
         users = []
         for url in self.urls:
+            # id = self.r.id_from_url(url)
             submission = self.r.submission(url=url)
-            for top_level_comment in submission.comments:
-                    print(top_level_comment.body)
-                    
+            # for top_level_comment in submission.comments:
+            #         print(top_level_comment.body)
+
+            submission.comments.replace_more(limit=None)
+            for comment in submission.comments.list()[:15]:
+                user = comment.author
+                users.append(user.name)
+
         return users
 
-
-    def get_urls(self, location):
+    def get_contents_by_line(self, location):
         """
         Gets content line by line of text file at location.
         
@@ -42,10 +49,10 @@ class MassMessenger:
         :return: list
         """
         file = open(location, 'r')
-        urls = file.readlines()
-        return urls
+        contents = file.readlines()
+        return contents
 
-    def get_message(self, location):
+    def get_contents_by_whole(self, location):
         """
         Gets content of text file at location.
 
@@ -53,10 +60,10 @@ class MassMessenger:
         :return: str
         """
         file = open(location, 'r')
-        message = file.read()
-        if message[-1:] == "\n":
-            return message[:len(message)-1]
-        return message
+        contents = file.read()
+        if contents[-1:] == "\n":
+            return contents[:len(contents)-1]
+        return contents
 
 
     def run(self):
@@ -104,6 +111,7 @@ if __name__ == '__main__':
     # Setting data sources
     urls = "sample-urls.txt"
     message = "sample-message.txt"
+    subject = "subject.txt"
  
     m = MassMessenger(
         client_id,
