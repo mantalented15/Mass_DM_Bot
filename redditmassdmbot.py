@@ -4,7 +4,6 @@ import time
 from dotenv import load_dotenv
 from pathlib import Path
 
-
 class MassMessenger:
     """
     Sends a mass message to a list of Reddit users.
