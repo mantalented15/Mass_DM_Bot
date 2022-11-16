@@ -1,6 +1,5 @@
 import os
 import praw
-import openpyxl
 import time
 from dotenv import load_dotenv
 from pathlib import Path
@@ -11,29 +10,43 @@ class MassMessenger:
     Sends a mass message to a list of Reddit users.
     """
 
-    def __init__(self, c_id, c_secret, user, pswd, list, message, subject):
+    def __init__(self, c_id, c_secret, user, pwd, user_agent, message_loc, urls_loc):
         self.r = praw.Reddit(client_id=c_id,
-                     client_secret=c_secret, password=pswd,
-                     user_agent=user, username=user)
-        self.list = self.get_users(list)
-        self.message = self.get_contents(message)
-        self.subject = self.get_contents(subject)
+                     client_secret=c_secret, password=pwd,
+                     user_agent=user_agent, username=user)
+        self.message = self.get_contents(message_loc)
+        self.urls = self.get_urls(urls_loc)
+        self.list = self.get_users(self.urls)
 
-    def get_users(self, list):
+    def get_users(self, urls:list) -> list:
         """
-        Gets list of user's from Excel file and organizes them into a list.
-
-        :param list: str
-        :return: list[str, str]
+        Gets user list for comments under the post urls
+        
+        :param urls: list
+        :return: list
         """
-        usernames = []
-        wb = openpyxl.load_workbook(list)
-        ws = wb.active
-        for row in range(1, ws.max_row + 1):
-            usernames.append([ws['A' + str(row)].value, 'Not Sent'])
-        return usernames
+ 
+        users = []
+        for url in self.urls:
+            submission = self.r.submission(url=url)
+            for top_level_comment in submission.comments:
+                    print(top_level_comment.body)
+                    
+        return users
 
-    def get_contents(self, location):
+
+    def get_urls(self, location):
+        """
+        Gets content line by line of text file at location.
+        
+        :param location: str
+        :return: list
+        """
+        file = open(location, 'r')
+        urls = file.readlines()
+        return urls
+
+    def get_message(self, location):
         """
         Gets content of text file at location.
 
@@ -41,15 +54,15 @@ class MassMessenger:
         :return: str
         """
         file = open(location, 'r')
-        contents = file.read()
-        if contents[-1:] == "\n":
-            return contents[:len(contents)-1]
-        return contents
+        message = file.read()
+        if message[-1:] == "\n":
+            return message[:len(message)-1]
+        return message
+
 
     def run(self):
         """
-        Runs main message sending code as well as runs the stats and
-        creates the concluding Excel document.
+        Runs main message sending code.
         """
         self.show_stats()
         count = 0
@@ -69,7 +82,6 @@ class MassMessenger:
                 self.list[count][1] = 'Sent'
                 count += 1
                 pause_count += 1
-        self.create_excel_doc()
 
     def show_stats(self):
         """
@@ -78,22 +90,6 @@ class MassMessenger:
         :return: str
         """
         print('sending to ' + str(len(self.list)) + ' users.')
-
-    def create_excel_doc(self):
-        """
-        Creates the final Excel document containing sending info.
-        """
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Results'
-        ws['A1'] = 'Username'
-        ws['B1'] = 'Status'
-        current_row = 2
-        for user in self.list:
-            ws['A' + str(current_row)] = user[0]
-            ws['B' + str(current_row)] = user[1]
-            current_row += 1
-        wb.save('results.xlsx')
 
 if __name__ == '__main__':
     env_path = Path('.') / '.env'
@@ -104,20 +100,20 @@ if __name__ == '__main__':
     client_secret = os.getenv("client_secret")
     username = os.getenv("reddit_username")
     password = os.getenv("reddit_password")
+    user_agent = os.getenv("reddit_user_agent")
 
     # Setting data sources
-    list = "sample-users.xlsx"
+    urls = "sample-urls.txt"
     message = "sample-message.txt"
-    subject = "sample-subject.txt"
-
+ 
     m = MassMessenger(
         client_id,
         client_secret,
         username,
         password,
-        list,
+        user_agent,
         message,
-        subject
+        urls
     )
 
     # Running messenger
